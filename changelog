@@ -1,0 +1,15 @@
+v0.2.0
+*   initial release
+*   day rain and 24 hour rain now derived from the WeeWX archive if not
+    provided by the weather station driver
+*   moved rain calculation method to class WeewxAprx()
+*   latitude and longitude default to station latitude/longitude if not
+    specified under [WeewxAprx] in weewx.conf
+*   now WeeWX 3 and WeeWX 4/python 2 or 3 compatible
+*   added daylight_saving_aware config item so that calculation of day rain and
+    hour rain from archive can be daylight saving aware, default is False.
+*   added default values for symbol and output file name
+*   the WeeWX database to be used can now be specified through use of the
+    data_binding config option under [WeewxAprx] in weewx.conf
+*   added additional config output to log during startup
+*   changed humidity output format to comply with APRS protocol
