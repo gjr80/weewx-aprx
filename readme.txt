@@ -1,11 +1,11 @@
-The APRX extension generates an APRS compliant weather beacon file. The 
-extension consists of a single WeeWX service that generates the weather beacon 
+The APRX extension generates an APRS compliant weather packet file. The
+extension consists of a single WeeWX service that generates the weather packet
 file.
 
 
 Pre-Requisites
 
-The APRX extension requires WeeWX v3.0.0 or greater and when used with 
+The APRX extension requires WeeWX v3.0.0 or greater and when used with
 WeeWX v4.0.0 or later can be used under Python 2 or Python 3.
 
 
@@ -66,9 +66,9 @@ utility:
 
     $ sudo systemctl restart weewx
 
-This will result in the beacon file being generated on receipt of each loop
-packet. A default installation will result in the generated beacon file being
-placed in the /var/tmp directory. The APRX extension installation can be
+This will result in the weather packet file being generated on receipt of each
+loop packet. A default installation will result in the generated beacon file
+being placed in the /var/tmp directory. The APRX extension installation can be
 further customized (eg file locations, frequency of generation etc) by
 referring to the APRX extension wiki.
 
@@ -122,8 +122,8 @@ WeewxAprx service to the list of process services to be run:
 
     $ sudo systemctl restart weewx
 
-This will result in the beacon file being generated on receipt of each loop
-packet. A default installation will result in the generated beacon file being
-placed in the /var/tmp directory. The APRX extension installation can be
+This will result in the weather packet file being generated on receipt of each
+loop packet. A default installation will result in the generated beacon file
+being placed in the /var/tmp directory. The APRX extension installation can be
 further customized (eg file locations, frequency of generation etc) by
 referring to the APRX extension wiki.

@@ -6,7 +6,7 @@ The *APRX* extension generates an APRS compliant weather beacon file. The extens
 
 ## Pre-requisites ##
 
-The *APRX* extension requires WeeWX v3.0.0 or g*rea*ter and when used with WeeWX v4.0.0 or later can be used under Python 2 or Python 3.
+The *APRX* extension requires WeeWX v3.0.0 or greater and when used with WeeWX v4.0.0 or later can be used under Python 2 or Python 3.
 
 ## Installation ##
 
@@ -50,7 +50,7 @@ The *APRX* extension can be installed manually or automatically using the *wee_e
     
         $ sudo systemctl restart weewx
 
-This will result in the beacon file being generated on receipt of each loop packet. A default installation will result in the generated beacon file being placed in the */var/tmp* directory. The *APRX* extension installation can be further customized (eg file locations, frequency of generation etc) by referring to the *APRX* extension wiki.
+This will result in the weather packet file being generated on receipt of each loop packet. A default installation will result in the generated beacon file being placed in the */var/tmp* directory. The *APRX* extension installation can be further customized (eg file locations, frequency of generation etc) by referring to the *APRX* extension wiki.
 
 ### Manual installation ###
 
@@ -93,7 +93,7 @@ This will result in the beacon file being generated on receipt of each loop pack
 
         $ sudo systemctl restart weewx
 
-This will result in the beacon file being generated on receipt of each loop packet. A default installation will result in the generated beacon file being placed in the */var/tmp* directory. The *APRX* extension installation can be further customized (eg file locations, frequency of generation etc) by referring to the *APRX* extension wiki.
+This will result in the weather packet file being generated on receipt of each loop packet. A default installation will result in the generated beacon file being placed in the */var/tmp* directory. The *APRX* extension installation can be further customized (eg file locations, frequency of generation etc) by referring to the *APRX* extension wiki.
 
 ## Support ##
 

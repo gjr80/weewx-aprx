@@ -132,6 +132,7 @@ page (https://github.com/gjr80/weewx-aprx).
 import datetime
 import math
 import time
+from distutils.version import StrictVersion
 
 # WeeWX imports
 import weewx
@@ -186,12 +187,14 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
 
 
-VERSION = "0.2.0b1"
+APRX_VERSION = "0.2.0b1"
+REQUIRED_VERSION = "3.0.0"
 
-if weewx.__version__ < "3":
-    raise weewx.UnsupportedFeature("WeeWX 3 or later is required, found %s" %
-                                   weewx.__version__)
-
+if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
+    msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('WeeWX APRX ', APRX_VERSION)),
+                                                         REQUIRED_VERSION,
+                                                         weewx.__version__)
+    raise weewx.UnsupportedFeature(msg)
 
 def convert(v, obs, group, from_unit_system, to_units):
     """Convert an observation value to the required units."""
@@ -286,7 +289,7 @@ class WeewxAprx(StdService):
             self.bind(weewx.NEW_ARCHIVE_RECORD, self.handle_new_archive)
             interval_str = 'archive record'
         # now log what we are going to do/use
-        loginf("version %s" % VERSION)
+        loginf("version %s" % APRX_VERSION)
         loginf("using lat=%s lon=%s" % (self.lat, self.lon))
         loginf("using note=%s" % self.note)
         loginf("using symbol=%s" % self.symbol)
