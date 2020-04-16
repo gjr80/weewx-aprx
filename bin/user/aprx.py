@@ -1,7 +1,7 @@
 """
 aprx.py
 
-A WeeWX service to generate an APRX beacon file.
+A WeeWX service to generate an APRS weather packet file.
 
 Based on the WeeWX cwxn service copyright (C) Matthew Wall 2014
 (https://github.com/weewx/weewx/wiki/cwxn) and modified by
@@ -22,10 +22,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-  Version: 0.2.0b1                                    Date: 11 April 2020
+  Version: 0.2.0b1                                    Date: 17 April 2020
 
   Revision History
-    11 April 2020       v0.2.0
+    17 April 2020       v0.2.0
         - initial release
         - day rain and 24 hour rain now derived from the WeeWX archive if not
           provided by the weather station driver
@@ -45,7 +45,7 @@ this program.  If not, see http://www.gnu.org/licenses/.
 Purpose
 
 The purpose of the weewx-aprx service is to generate an APRS compliant weather
-beacon file. Details of the APRS protocol can be found
+packet file. Details of the APRS protocol can be found
 at http://www.aprs.net/vm/DOS/PROTOCOL.HTM.
 
 Abbreviated instructions for use
@@ -63,23 +63,23 @@ page (https://github.com/gjr80/weewx-aprx).
 
 Basic configuration
 
-A basic install of the weewx-aprx extension should result in a beacon file
-being produced. The operation of the weewx-aprx extension and content of the
-beacon file can be customised using config settings under the [WeewxAprx]
+A default install of the weewx-aprx extension should result in a weather packet
+file being produced. The operation of the weewx-aprx extension and content of
+the beacon file can be customised using config settings under the [WeewxAprx]
 stanza in weewx.conf as follows:
 
 [WeewxAprx]
-    # Latitude string to be used in the beacon file. Format is:
+    # Latitude string to be used in the weather packet file. Format is:
     #   lat = ddmm.mmH
     # where:
     #   dd:    two digit latitude degree value (includes leading zeroes)
-    #   mm.mm: latitude minutes rounded to to decimal places (includes leading
+    #   mm.mm: latitude minutes rounded to two decimal places (includes leading
     #          zeroes)
     #   H:     N for northern hemisphere or S for southern hemisphere latitude
-    # # Optional, default is station latitude.
+    # Optional, default is station latitude.
     lat = ddmm.mmH
 
-    # Longitude string to be used in the beacon file. Format is:
+    # Longitude string to be used in the weather packet file. Format is:
     #   lon = dddmm.mmH
     #   ddd:   three digit longitude degree value (includes leading zeroes)
     #   mm.mm: longitude minutes rounded to two decimal places (includes
@@ -88,23 +88,23 @@ stanza in weewx.conf as follows:
     # Optional, default is station longitude.
     lon = dddmm.mmH
 
-    # Symbol to use in the beacon file. Optional, default is '/_'.
+    # Symbol to use in the weather packet file. Optional, default is '/_'.
     symbol = /_
 
-    # Note to include at the end of the beacon string. If whitespace is
+    # Note to include at the end of the weather data string. If whitespace is
     # included in the note setting then the note setting must be enclosed in
     # single or double quotation marks. Optional, default is no note string.
     note = "note text"
 
-    # Full file name and path used for the beacon file output. Optional, default
-    # is /var/tmp/wprx_wx.txt
+    # Full file name and path used for the weather packet file output. Optional,
+    # default is /var/tmp/wprx_wx.txt.
     filename = full_path_and_filename
 
     # Database binding to use. Optional, default 'wx_binding'.
     data_binding = binding_name
 
-    # Whether to generate a beacon file on the arrival of each archive record
-    # or each loop packet. Format is:
+    # Whether to generate a weather packet file on the arrival of each archive
+    # record or each loop packet. Format is:
     #   binding = loop|archive
     # where:
     #   loop:    generates a beacon file on the arrival of each loop packet
@@ -114,7 +114,7 @@ stanza in weewx.conf as follows:
 
     # Whether to include compensation for daylight saving when calculating
     # 24 hour rain and hour rain from the WeeWX database. Format is:
-    #   daylight_saving_aware = true|False
+    #   daylight_saving_aware = True|False
     # where:
     #   True:  24 hour rain and hour rain calculations using the WeeWX database
     #          are compensated for daylight saving
@@ -156,7 +156,7 @@ try:
     def logerr(msg):
         log.error(msg)
 
-    # log_traceback() generates the same outut but the singature and code is
+    # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
     def log_traceback_error(prefix=''):
@@ -179,7 +179,7 @@ except ImportError:
     def logerr(msg):
         logmsg(syslog.LOG_ERR, msg)
 
-    # log_traceback() generates the same outut but the singature and code is
+    # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
     def log_traceback_error(prefix=''):
@@ -193,12 +193,12 @@ if weewx.__version__ < "3":
                                    weewx.__version__)
 
 
-def convert(v, metric, group, from_unit_system, to_units):
-    """Convert an observation to the required units."""
+def convert(v, obs, group, from_unit_system, to_units):
+    """Convert an observation value to the required units."""
 
-    # get the units used by our metric given the packet unit system
-    ut = weewx.units.getStandardUnitType(from_unit_system, metric)
-    # express our metric as a ValueTuple
+    # get the units used by our observation given the packet unit system
+    ut = weewx.units.getStandardUnitType(from_unit_system, obs)
+    # express our observation as a ValueTuple
     vt = weewx.units.ValueTuple(v, ut[0], group)
     v = weewx.units.convert(vt, to_units).value
     return v
@@ -215,7 +215,7 @@ def nullproof(key, data):
 
 
 class WeewxAprx(StdService):
-    """WeeWX service to generate an APRS weather beacon file."""
+    """WeeWX service to generate an APRS weather packet file."""
 
     def __init__(self, engine, config_dict):
         # call our parents initialisation
@@ -238,7 +238,7 @@ class WeewxAprx(StdService):
             (frac_minutes, minutes) = math.modf(_temp)
             # obtain the hundredths of a minute
             decimal_minutes = frac_minutes * 100.0
-            # obtain the hemispher as a single character string
+            # obtain the hemisphere as a single character string
             hemi = 'N' if engine.stn_info.latitude_f >= 0.0 else 'S'
             # construct the APRS format latitude string
             lat = "%02d%02d.%02d%s" % (degrees, minutes, decimal_minutes, hemi)
@@ -256,7 +256,7 @@ class WeewxAprx(StdService):
             (frac_minutes, minutes) = math.modf(_temp)
             # obtain the hundredths of a minute
             decimal_minutes = frac_minutes * 100.0
-            # obtain the hemispher as a single character string
+            # obtain the hemisphere as a single character string
             hemi = 'E' if engine.stn_info.longitude_f >= 0.0 else 'W'
             # construct the APRS format longitude string
             lon = "%03d%02d.%02d%s" % (degrees, minutes, decimal_minutes, hemi)
@@ -304,20 +304,20 @@ class WeewxAprx(StdService):
         self.handle_data(event.record)
 
     def handle_data(self, event_data):
-        """Obtain the required data and generate the beacon file."""
+        """Obtain the required data and generate the weather packet file."""
 
         # wrap in a try..except in case anything goes wrong
         try:
-            # obtain the data required for the beacon file
+            # obtain the data required for the weather packet file
             data = self.calculate(event_data)
-            # generate the beacon file
+            # generate the weather packet file
             self.write_data(data)
         except Exception as e:
             # an exception occurred, log it and continue
             log_traceback_error(prefix='aprx: **** ')
 
     def calculate(self, packet):
-        """Obtain the data for the APRX beacon file."""
+        """Obtain the data for the weather packet file."""
 
         # obtain the unit system used by the packet
         pu = packet.get('usUnits')
@@ -385,13 +385,14 @@ class WeewxAprx(StdService):
         return data
 
     def write_data(self, data):
-        """Generate the beacon file.
+        """Generate the weather packet file.
 
-        Construct a list of the formatted content for each field in the beacon file. s to appear
+        Construct a list of the formatted content for each field in the packet
+        string. Concatenate this content and write to the weather packet file.
         """
 
-        # ititialise a list to hold the formatted fields used to construct the
-        # beacon file
+        # initialise a list to hold the formatted fields used to construct the
+        # packet string
         fields = list()
         # add the formatted fields to the field list in order
         fields.append("%s" % self.lat)
