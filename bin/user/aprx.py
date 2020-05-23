@@ -22,10 +22,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-  Version: 0.2.0b1                                    Date: 17 April 2020
+  Version: 0.2.0                                      Date: 24 May 2020
 
   Revision History
-    17 April 2020       v0.2.0
+    24 May 2020         v0.2.0
         - initial release
         - day rain and 24 hour rain now derived from the WeeWX archive if not
           provided by the weather station driver
@@ -88,15 +88,18 @@ stanza in weewx.conf as follows:
     # Optional, default is station longitude.
     lon = dddmm.mmH
 
-    # Symbol to use in the weather packet file. Optional, default is '/_'.
-    symbol = /_
+    # Symbol to use in the weather packet file. To prevent confusion when the
+    # config file is parsed it is recommended that the symbol setting be
+    # enclosed in single or double quotation marks. If a comma is used it must
+    # be enclosed in single or double quotation marks.Optional, default is '/_'.
+    symbol = '/_'
 
     # Note to include at the end of the weather data string. If whitespace is
     # included in the note setting then the note setting must be enclosed in
     # single or double quotation marks. Optional, default is no note string.
-    note = "note text"
+    note = 'note text'
 
-    # Full file name and path used for the weather packet file output. Optional,
+    # Full path and file name used for the weather packet file output. Optional,
     # default is /var/tmp/wprx_wx.txt.
     filename = full_path_and_filename
 
@@ -188,11 +191,11 @@ except ImportError:
 
 
 APRX_VERSION = "0.2.0b1"
-REQUIRED_VERSION = "3.0.0"
+REQUIRED_WEEWX_VERSION = "3.0.0"
 
-if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
+if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
     msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('WeeWX APRX ', APRX_VERSION)),
-                                                         REQUIRED_VERSION,
+                                                         REQUIRED_WEEWX_VERSION,
                                                          weewx.__version__)
     raise weewx.UnsupportedFeature(msg)
 
@@ -203,8 +206,8 @@ def convert(v, obs, group, from_unit_system, to_units):
     ut = weewx.units.getStandardUnitType(from_unit_system, obs)
     # express our observation as a ValueTuple
     vt = weewx.units.ValueTuple(v, ut[0], group)
-    v = weewx.units.convert(vt, to_units).value
-    return v
+    # return the value
+    return weewx.units.convert(vt, to_units).value
 
 
 def nullproof(key, data):
@@ -221,7 +224,7 @@ class WeewxAprx(StdService):
     """WeeWX service to generate an APRS weather packet file."""
 
     def __init__(self, engine, config_dict):
-        # call our parents initialisation
+        # call our parent's initialisation
         super(WeewxAprx, self).__init__(engine, config_dict)
 
         # obtain our config dict

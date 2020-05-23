@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for weewx-aprx
 
-Version: 0.2.0                                      Date: 17 April 2020
+Version: 0.2.0                                      Date: 24 May 2020
 
 Revision History
-    17 April 2020       v0.2.0
+    24 May 2020         v0.2.0
         - initial implementation
 """
 
@@ -22,7 +22,7 @@ import weewx
 from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
-REQUIRED_VERSION = "3.0.0"
+REQUIRED_WEEWX_VERSION = "3.0.0"
 APRX_VERSION = "0.2.0"
 
 
@@ -32,9 +32,9 @@ def loader():
 
 class AprxInstaller(ExtensionInstaller):
     def __init__(self):
-        if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
+        if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
             msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('WeeWX APRX ', APRX_VERSION)),
-                                                                 REQUIRED_VERSION,
+                                                                 REQUIRED_WEEWX_VERSION,
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
         super(AprxInstaller, self).__init__(
