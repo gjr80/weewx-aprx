@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for weewx-aprx
 
-Version: 0.2.0                                      Date: 24 May 2020
+Version: 0.2.0                                      Date: 8 June 2021
 
 Revision History
-    24 May 2020         v0.2.0
+    8 June 2021         v0.2.0
         - initial implementation
 """
 

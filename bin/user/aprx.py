@@ -20,12 +20,12 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program.  If not, see http://www.gnu.org/licenses/.
+this program.  If not, see https://www.gnu.org/licenses/.
 
-  Version: 0.2.0                                      Date: 24 May 2020
+  Version: 0.2.0                                      Date: 8 June 2021
 
   Revision History
-    24 May 2020         v0.2.0
+    8 June 2021         v0.2.0
         - initial release
         - day rain and 24 hour rain now derived from the WeeWX archive if not
           provided by the weather station driver
@@ -190,7 +190,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
 
 
-APRX_VERSION = "0.2.0b1"
+APRX_VERSION = "0.2.0"
 REQUIRED_WEEWX_VERSION = "3.0.0"
 
 if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
@@ -198,6 +198,7 @@ if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
                                                          REQUIRED_WEEWX_VERSION,
                                                          weewx.__version__)
     raise weewx.UnsupportedFeature(msg)
+
 
 def convert(v, obs, group, from_unit_system, to_units):
     """Convert an observation value to the required units."""
