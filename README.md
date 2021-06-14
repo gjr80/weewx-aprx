@@ -22,21 +22,21 @@ The *APRX* extension can be installed manually or automatically using the *wee_e
 
 1.  Download the latest *APRX* extension from the *APRX* extension [releases page](https://github.com/gjr80/weewx-aprx/releases) into a directory accessible from the WeeWX machine.
 
-        $ wget -P $DOWNLOAD_ROOT https://github.com/gjr80/weewx-aprx/releases/download/v0.2.0/aprx-0.2.0.tar.gz
+        $ wget -P $DOWNLOAD_ROOT https://github.com/gjr80/weewx-aprx/releases/download/v0.2.1/aprx-0.2.1.tar.gz
 
     where *$DOWNLOAD_ROOT* is the path to the directory where the *APRX* extension is to be downloaded.
 
 2.  Install the *APRX* extension downloaded at step 1 using the *wee_extension* utility:
 
-        $ wee_extension --install=$DOWNLOAD_ROOT/aprx-0.2.0.tar.gz
+        $ wee_extension --install=$DOWNLOAD_ROOT/aprx-0.2.1.tar.gz
 
     This will result in output similar to the following:
 
-        Request to install '/var/tmp/aprx-0.2.0.tar.gz'
-        Extracting from tar archive /var/tmp/aprx-0.2.0.tar.gz
+        Request to install '/var/tmp/aprx-0.2.1.tar.gz'
+        Extracting from tar archive /var/tmp/aprx-0.2.1.tar.gz
         Saving installer file to /home/weewx/bin/user/installer/Aprx
         Saved configuration dictionary. Backup copy at /home/weewx/weewx.conf.20200412124410
-        Finished installing extension '/var/tmp/aprx-0.2.0.tar.gz'
+        Finished installing extension '/var/tmp/aprx-0.2.1.tar.gz'
 
 3.  Restart WeeWX:
 
@@ -56,13 +56,13 @@ This will result in the weather packet file being generated on receipt of each l
 
 1.  Download the latest *APRX* extension from the *APRX* extension [releases page](https://github.com/gjr80/weewx-aprx/releases) into a directory accessible from the WeeWX machine.
          
-        $ wget -P $DOWNLOAD_ROOT https://github.com/gjr80/weewx-aprx/releases/download/v0.2.0/aprx-0.2.0.tar.gz
+        $ wget -P $DOWNLOAD_ROOT https://github.com/gjr80/weewx-aprx/releases/download/v0.2.1/aprx-0.2.1.tar.gz
  
    where *$DOWNLOAD_ROOT* is the path to the directory where the *APRX* extension is to be downloaded.
 
 2.  Unpack the extension as follows:
 
-        $ tar xvfz aprx-0.2.0.tar.gz
+        $ tar xvfz aprx-0.2.1.tar.gz
 
 3.  Copy files from within the resulting directory as follows:
 

@@ -8,7 +8,7 @@ Based on the WeeWX cwxn service copyright (C) Matthew Wall 2014
 Mohd Hamid Misnan to produce the weewx2aprx service in 2015
 (https://9m2tpt.blogspot.com/2015/09/getting-your-fine-offset-wx-on-rf-with.html).
 
-Copyright (C) 2020 Gary Roderick                    gjroderick<at>gmail.com
+Copyright (C) 2020-2021 Gary Roderick               gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
