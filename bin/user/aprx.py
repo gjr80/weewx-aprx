@@ -22,9 +22,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-  Version: 0.2.0                                      Date: 8 June 2021
+  Version: 0.2.1                                      Date: 11 June 2021
 
   Revision History
+    11 June 2021        v0.2.1
+        - fixed bug that resulted in date-time being displayed in local time
+          rather than Zulu time/GMT
     8 June 2021         v0.2.0
         - initial release
         - day rain and 24 hour rain now derived from the WeeWX archive if not
@@ -190,7 +193,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
 
 
-APRX_VERSION = "0.2.0"
+APRX_VERSION = "0.2.1"
 REQUIRED_WEEWX_VERSION = "3.0.0"
 
 if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
@@ -422,7 +425,7 @@ class WeewxAprx(StdService):
         with open(self.filename, 'w') as f:
             # write the date-time
             f.write(time.strftime("@%d%H%Mz",
-                                  time.localtime(data['dateTime'])))
+                                  time.gmtime(data['dateTime'])))
             # write the formatted fields
             f.write(''.join(fields))
             # write a terminating new line character
