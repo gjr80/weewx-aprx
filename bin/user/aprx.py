@@ -8,7 +8,7 @@ Based on the WeeWX cwxn service copyright (C) Matthew Wall 2014
 Mohd Hamid Misnan to produce the weewx2aprx service in 2015
 (https://9m2tpt.blogspot.com/2015/09/getting-your-fine-offset-wx-on-rf-with.html).
 
-Copyright (C) 2020-2021 Gary Roderick               gjroderick<at>gmail.com
+Copyright (C) 2020-2022 Gary Roderick               gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-  Version: 0.2.1                                      Date: 11 June 2021
+  Version: 0.3.0                                      Date: ?? July 2022
 
   Revision History
+    ?? July 2022        v0.3.0
+        - output units can now be specified collectively or individually using
+          the unit_system option or one or more xxxx_units options
     11 June 2021        v0.2.1
         - fixed bug that resulted in date-time being displayed in local time
           rather than Zulu time/GMT
@@ -60,9 +63,6 @@ releases tab (https://github.com/gjr80/weewx-aprx/releases).
 
 3.  Restart WeeWX
 
-Detailed installation instructions can be found in the readme.txt file included
-in the extension package or on the GitHub weewx-aprx home
-page (https://github.com/gjr80/weewx-aprx).
 
 Basic configuration
 
@@ -129,9 +129,27 @@ stanza in weewx.conf as follows:
     # Optional, default is False.
     daylight_saving_aware = True|False
 
-Detailed configuration instructions can be found in the readme.txt file included
-in the extension package or on the GitHub weewx-aprx home
-page (https://github.com/gjr80/weewx-aprx).
+    # Units to use in the weather packet file. Units may be specified
+    # collectively through use of the unit_system option or individually
+    # through one or more xxxx_units options. If the unit_system option is
+    # omitted and no xxxx_units options are specified US units are used.
+
+    # unit_system specifies the WeeWX unit system to use for data in the
+    # weather packet file. Units associated with each unit system are detailed
+    # in the Units appendix to the WeeWX Customization Guide. Optional, default US.
+    unit_system = (US | METRIC | METRICWX)
+
+    # individual observation group units can be controlled with one or more
+    # xxxx_units options. xxxx_units options override any units specified via
+    # the unit_system option. Optional, no default.
+    temperature_units = (degree_C | degree_F | degree_K)
+    pressure_units = (hPa | mbar | inHg)
+    speed_units = (meter_per_second | mile_per_hour | km_per_hour | knot)
+    rain_units = (mm | inch)
+
+Further installation and configuration instructions can be found in the
+readme.txt file included in the extension package or via weewx-aprx wiki
+(https://github.com/gjr80/weewx-aprx/wiki).
 """
 
 # python imports
@@ -139,6 +157,8 @@ import datetime
 import math
 import time
 from distutils.version import StrictVersion
+
+import six
 
 # WeeWX imports
 import weewx
@@ -193,8 +213,13 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
 
 
-APRX_VERSION = "0.2.1"
+APRX_VERSION = "0.3.0"
 REQUIRED_WEEWX_VERSION = "3.0.0"
+UNITS_BY_UNIT_GROUP = {'group_temperature': ('degree_C', 'degree_F', 'degree_K'),
+                       'group_pressure': ('hPa', 'kPa', 'inHg', 'mmHg', 'mbar'),
+                       'group_speed': ('km_per_hour', 'mile_per_hour', 'knot', 'meter_per_second'),
+                       'group_rain': ('mm', 'cm', 'inch')
+                       }
 
 if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
     msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('WeeWX APRX ', APRX_VERSION)),
@@ -203,24 +228,12 @@ if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX_VERSION):
     raise weewx.UnsupportedFeature(msg)
 
 
-def convert(v, obs, group, from_unit_system, to_units):
-    """Convert an observation value to the required units."""
+def nullproof(value):
+    """Replace a None value with 0."""
 
-    # get the units used by our observation given the packet unit system
-    ut = weewx.units.getStandardUnitType(from_unit_system, obs)
-    # express our observation as a ValueTuple
-    vt = weewx.units.ValueTuple(v, ut[0], group)
-    # return the value
-    return weewx.units.convert(vt, to_units).value
-
-
-def nullproof(key, data):
-    """Replace a missing or None value packet field with 0."""
-
-    # if the key exists in the packet and the obs is not None then return the
-    # obs value otherwise return 0
-    if key in data and data[key] is not None:
-        return data[key]
+    # if the value is not None then return the value otherwise return 0
+    if value is not None:
+        return value
     return 0
 
 
@@ -282,18 +295,72 @@ class WeewxAprx(StdService):
         # archive
         self.ds_aware = weeutil.weeutil.tobool(d.get('daylight_saving_aware',
                                                      False))
+        # Get the units we are to use. The user may specify units in one of two
+        # ways:
+        # - by specifying the WeeWX unit system to use via the unit_system
+        #   config option
+        # - by specifying individual group units (eg temperature, pressure etc)
+        #   via xxxx_units config options
+        # If a unit system is specified via the unit_system config option and
+        # one or more xxxx_units config options are specified then the
+        # xxxx_units config options will override the respective units in the
+        # chosen unit system. If neither unit_system or any xxxx_units options
+        # are set the database unit system will be used.
+
+        # do we have a unit system ?
+        unit_system_name = d.get('unit_system')
+        if unit_system_name is not None:
+            if unit_system_name.upper() in weewx.units.unit_constants:
+                loginf("Units will be displayed using '%s' units" % unit_system_name.upper())
+                unit_system = weewx.units.unit_constants[unit_system_name.upper()]
+            else:
+                logerr("Unknown unit_system '%s'" % unit_system_name)
+                unit_system = None
+        else:
+            # no unit system was set
+            unit_system = None
+
+        # now get any overrides to the display units
+        self.units = dict()
+        for unit_group, units in six.iteritems(UNITS_BY_UNIT_GROUP):
+            group = unit_group.split('_', 1)[1]
+            group_key = '%s_units' % group
+            if group_key in d:
+                if d[group_key] in units:
+                    loginf("'%s' units will be displayed as '%s'" % (group, d[group_key]))
+                    self.units[unit_group] = d[group_key]
+                else:
+                    logerr("Unknown unit '%s' for '%s'" % (d[group_key], group))
+            else:
+                # no unit group override was specified, so look to the unit
+                # system
+                if unit_system is not None:
+                    # a unit system was specified so obtain the unit group from
+                    # there
+                    self.units[unit_group] = weewx.units.std_groups[unit_system][unit_group]
+                else:
+                    # no unit system was specified so we will use the database
+                    # units
+                    pass
+
         # get the database binding to use, default to 'wx_binding'
         data_binding = d.get('data_binding', 'wx_binding')
         # now get a db manager
         self.dbm = self.engine.db_binder.get_manager(data_binding)
+        # get our db rain units
+        if self.dbm.std_unit_system is not None:
+            self.rain_unit = weewx.units.getStandardUnitType(self.dbm.std_unit_system,
+                                                             'rain')
+        else:
+            self.rain_unit = None
         # Do we generate our output every loop packet or every archive
         # record? 'loop' may be problematic for partial packet stations.
         binding = d.get('binding', 'loop').lower()
         if binding == 'loop':
-            self.bind(weewx.NEW_LOOP_PACKET, self.handle_new_loop)
+            self.bind(weewx.NEW_LOOP_PACKET, self.process_loop_packet)
             interval_str = 'loop packet'
         else:
-            self.bind(weewx.NEW_ARCHIVE_RECORD, self.handle_new_archive)
+            self.bind(weewx.NEW_ARCHIVE_RECORD, self.process_archive_record)
             interval_str = 'archive record'
         # now log what we are going to do/use
         loginf("version %s" % APRX_VERSION)
@@ -303,67 +370,100 @@ class WeewxAprx(StdService):
         loginf("using database binding '%s'" % data_binding)
         loginf("output will be saved to '%s' on every %s" % (self.filename, interval_str))
 
-    def handle_new_loop(self, event):
+    def process_loop_packet(self, event):
         """Process a new loop packet."""
 
-        self.handle_data(event.packet)
+        self.process_packet(event.packet)
 
-    def handle_new_archive(self, event):
+    def process_archive_record(self, event):
         """Process a new archive record."""
 
-        self.handle_data(event.record)
+        self.process_packet(event.record)
 
-    def handle_data(self, event_data):
-        """Obtain the required data and generate the weather packet file."""
+    def process_packet(self, packet):
+        """Process a data packet/record and generate a weather packet file."""
 
         # wrap in a try..except in case anything goes wrong
         try:
             # obtain the data required for the weather packet file
-            data = self.calculate(event_data)
+            data = self.calculate(packet)
             # generate the weather packet file
             self.write_data(data)
         except Exception as e:
             # an exception occurred, log it and continue
             log_traceback_error(prefix='aprx: **** ')
 
+    def convert(self, value_vt):
+        """Convert a ValueTuple to the destination units for that group."""
+
+        # get the unit group  from our ValueTuple, we need it to identify our
+        # destination unit
+        unit_group = value_vt.group
+        # do the conversion and return the resulting ValueTuple
+        return weewx.units.convert(value_vt, self.units[unit_group])
+
     def calculate(self, packet):
         """Obtain the data for the weather packet file."""
 
-        # obtain the unit system used by the packet
-        pu = packet.get('usUnits')
+        # obtain the group units used by the packet
+        # first get the packet unit system
+        packet_units = packet.get('usUnits')
+        speed_unit = weewx.units.getStandardUnitType(packet_units, 'windSpeed')
+        temp_unit = weewx.units.getStandardUnitType(packet_units, 'outTemp')
+        press_unit = weewx.units.getStandardUnitType(packet_units, 'barometer')
+        rain_unit = weewx.units.getStandardUnitType(packet_units, 'rain')
         # initialise a dict to hold out data
         data = dict()
         # the unix epoch timestamp of our data
         data['dateTime'] = packet['dateTime']
         # wind direction
-        data['windDir'] = nullproof('windDir', packet)
-        v = nullproof('windSpeed', packet)
-        # wind speed in mph
-        data['windSpeed'] = convert(v, 'windSpeed', 'group_speed', pu, 'mile_per_hour')
-        v = nullproof('windGust', packet)
-        # wind gust in mph
-        data['windGust'] = convert(v, 'windGust', 'group_speed', pu, 'mile_per_hour')
-        # temperature in F
-        v = nullproof('outTemp', packet)
-        data['outTemp'] = convert(v, 'outTemp', 'group_temperature', pu, 'degree_F')
-        # total rainfall in the last hour in inches
-        if self.ds_aware:
-            # get a timedelta object representing the period length
-            _delta = datetime.timedelta(hours=1)
-            # determine the start time as a datetime object
-            start_td = datetime.datetime.fromtimestamp(data['dateTime']) - _delta
-            # and convert to a timestamp
-            start_ts = time.mktime(start_td.timetuple())
+        data['windDir'] = nullproof(packet.get('windDir'))
+        # wind speed
+        wind_speed_vt = weewx.units.ValueTuple(packet.get('windSpeed'),
+                                               speed_unit,
+                                               'group_speed')
+        wind_speed_conv = self.convert(wind_speed_vt)
+        data['windSpeed'] = nullproof(wind_speed_conv)
+        # wind gust
+        gust_speed_vt = weewx.units.ValueTuple(packet.get('windGust'),
+                                               speed_unit,
+                                               'group_speed')
+        gust_speed_conv = self.convert(gust_speed_vt)
+        data['windGust'] = nullproof(gust_speed_conv)
+        # temperature
+        temp_vt = weewx.units.ValueTuple(packet.get('outTemp'),
+                                         temp_unit,
+                                         'group_temperature')
+        temp_conv = self.convert(temp_vt)
+        data['outTemp'] = nullproof(temp_conv)
+        # total rainfall in the last hour
+        if 'hourRain' in packet:
+            last_hr_rain_vt = weewx.units.ValueTuple(packet['hourRain'],
+                                                     rain_unit,
+                                                     'group_rain')
         else:
-            # ignore daylight saving and simply subtract the period length from
-            # the stop timestamp
-            start_ts = data['dateTime'] - 3600
-        v = self.calc_rain_in_period(start_ts, data['dateTime'])
-        v = 0 if v is None else v
-        data['hourRain'] = convert(v, 'rain', 'group_rain', pu, 'inch')
-        # total rainfall in the last 24 hours in inches
+            if self.ds_aware:
+                # get a timedelta object representing the period length
+                _delta = datetime.timedelta(hours=1)
+                # determine the start time as a datetime object
+                start_td = datetime.datetime.fromtimestamp(data['dateTime']) - _delta
+                # and convert to a timestamp
+                start_ts = time.mktime(start_td.timetuple())
+            else:
+                # ignore daylight saving and simply subtract the period length
+                # from the stop timestamp
+                start_ts = data['dateTime'] - 3600
+            last_hr_rain = self.calc_rain_in_period(start_ts, data['dateTime'])
+            last_hr_rain_vt = weewx.units.ValueTuple(last_hr_rain,
+                                                     self.rain_units,
+                                                     'group_rain')
+        last_hr_rain_conv = self.convert(last_hr_rain_vt)
+        data['hourRain'] = nullproof(last_hr_rain_conv)
+        # total rainfall in the last 24 hours
         if 'rain24' in packet:
-            v = nullproof('rain24', packet)
+            last_24_rain_vt = weewx.units.ValueTuple(packet['rain24'],
+                                                     rain_unit,
+                                                     'group_rain')
         else:
             if self.ds_aware:
                 # get a timedelta object representing the period length
@@ -376,22 +476,33 @@ class WeewxAprx(StdService):
                 # ignore daylight saving and simply subtract the period length from
                 # the stop timestamp
                 start_ts = data['dateTime'] - 86400
-            v = self.calc_rain_in_period(start_ts, data['dateTime'])
-            v = 0 if v is None else v
-        data['rain24'] = convert(v, 'rain', 'group_rain', pu, 'inch')
+            last_24_rain = self.calc_rain_in_period(start_ts, data['dateTime'])
+            last_24_rain_vt = weewx.units.ValueTuple(last_24_rain,
+                                                     self.rain_units,
+                                                     'group_rain')
+        last_24_rain_conv = self.convert(last_24_rain_vt)
+        data['rain24'] = nullproof(last_24_rain_conv)
         # total rainfall since midnight in inches
         if 'dayRain' in packet:
-            v = nullproof('dayRain', packet)
+            day_rain_vt = weewx.units.ValueTuple(packet['dayRain'],
+                                                 rain_unit,
+                                                 'group_rain')
         else:
             start_ts = weeutil.weeutil.startOfDay(data['dateTime'])
-            v = self.calc_rain_in_period(start_ts, data['dateTime'])
-            v = 0 if v is None else v
-        data['dayRain'] = convert(v, 'rain', 'group_rain', pu, 'inch')
+            day_rain = self.calc_rain_in_period(start_ts, data['dateTime'])
+            day_rain_vt = weewx.units.ValueTuple(day_rain,
+                                                 self.rain_units,
+                                                 'group_rain')
+        day_rain_conv = self.convert(day_rain_vt)
+        data['dayRain'] = nullproof(day_rain_conv)
         # humidity
-        data['outHumidity'] = nullproof('outHumidity', packet)
-        # barometer in mbar
-        v = nullproof('barometer', packet)
-        data['barometer'] = convert(v, 'pressure', 'group_pressure', pu, 'mbar')
+        data['outHumidity'] = nullproof(packet.get('outHumidity'))
+        # barometer
+        baro_vt = weewx.units.ValueTuple(packet.get('barometer'),
+                                         press_unit,
+                                         'group_pressure')
+        baro_conv = self.convert(baro_vt)
+        data['barometer'] = nullproof(baro_conv)
         return data
 
     def write_data(self, data):
@@ -435,13 +546,13 @@ class WeewxAprx(StdService):
         """Calculate rainfall in a period.
 
         Calculates total rainfall in a period starting at start_ts and ending
-        at stop_ts.
+        at stop_ts. Value is returned in database units
         """
 
         # query the database
         val = self.dbm.getSql("SELECT SUM(rain) FROM %s "
-                         "WHERE dateTime>? AND dateTime<=?" % self.dbm.table_name,
-                         (start_ts, stop_ts))
+                              "WHERE dateTime>? AND dateTime<=?" % self.dbm.table_name,
+                              (start_ts, stop_ts))
         # return None if no data otherwise return the query result
         if val is None:
             return None
